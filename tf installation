@@ -1,4 +1,4 @@
-## 1.Installing terraform
+**## 1.Installing terraform**
 
 ```bash
 snap install aws-cli --classic
