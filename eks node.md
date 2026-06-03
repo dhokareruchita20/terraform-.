@@ -9,15 +9,33 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Default Subnets
-data "aws_subnets" "default" {
+# Default subnet in us-east-1a
+data "aws_subnet" "default_a" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1a"]
+  }
 }
 
-# EKS Cluster Role
+# Default subnet in us-east-1b
+data "aws_subnet" "default_b" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+
+  filter {
+    name   = "availability-zone"
+    values = ["us-east-1b"]
+  }
+}
+
+# EKS Cluster IAM Role
 resource "aws_iam_role" "cluster" {
   name = "eks-cluster-role"
 
@@ -42,11 +60,13 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
 resource "aws_eks_cluster" "cluster" {
   name     = "my-eks-cluster"
   role_arn = aws_iam_role.cluster.arn
-
-  version = "1.33"
+  version  = "1.32"
 
   vpc_config {
-    subnet_ids = data.aws_subnets.default.ids
+    subnet_ids = [
+      data.aws_subnet.default_a.id,
+      data.aws_subnet.default_b.id
+    ]
   }
 
   depends_on = [
@@ -54,9 +74,9 @@ resource "aws_eks_cluster" "cluster" {
   ]
 }
 
-# Node Group Role
+# Node Group IAM Role
 resource "aws_iam_role" "node" {
-  name = "eks-node-group-role"
+  name = "eks-nodegroup-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -91,7 +111,10 @@ resource "aws_eks_node_group" "node_group" {
   node_group_name = "my-node-group"
   node_role_arn   = aws_iam_role.node.arn
 
-  subnet_ids = data.aws_subnets.default.ids
+  subnet_ids = [
+    data.aws_subnet.default_a.id,
+    data.aws_subnet.default_b.id
+  ]
 
   scaling_config {
     desired_size = 2
