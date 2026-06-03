@@ -9,8 +9,8 @@ data "aws_vpc" "default" {
   default = true
 }
 
-# Default subnet in us-east-1a
-data "aws_subnet" "default_a" {
+# Default Subnets (us-east-1a and us-east-1b only)
+data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
@@ -18,24 +18,11 @@ data "aws_subnet" "default_a" {
 
   filter {
     name   = "availability-zone"
-    values = ["us-east-1a"]
+    values = ["us-east-1a", "us-east-1b"]
   }
 }
 
-# Default subnet in us-east-1b
-data "aws_subnet" "default_b" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-
-  filter {
-    name   = "availability-zone"
-    values = ["us-east-1b"]
-  }
-}
-
-# EKS Cluster IAM Role
+# EKS Cluster Role
 resource "aws_iam_role" "cluster" {
   name = "eks-cluster-role"
 
@@ -63,10 +50,7 @@ resource "aws_eks_cluster" "cluster" {
   version  = "1.32"
 
   vpc_config {
-    subnet_ids = [
-      data.aws_subnet.default_a.id,
-      data.aws_subnet.default_b.id
-    ]
+    subnet_ids = data.aws_subnets.default.ids
   }
 
   depends_on = [
@@ -74,7 +58,7 @@ resource "aws_eks_cluster" "cluster" {
   ]
 }
 
-# Node Group IAM Role
+# Node Group Role
 resource "aws_iam_role" "node" {
   name = "eks-nodegroup-role"
 
@@ -111,10 +95,7 @@ resource "aws_eks_node_group" "node_group" {
   node_group_name = "my-node-group"
   node_role_arn   = aws_iam_role.node.arn
 
-  subnet_ids = [
-    data.aws_subnet.default_a.id,
-    data.aws_subnet.default_b.id
-  ]
+  subnet_ids = data.aws_subnets.default.ids
 
   scaling_config {
     desired_size = 2
